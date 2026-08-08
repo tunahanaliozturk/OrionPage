@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>OrionPage.EntityFrameworkCore</PackageId>
+    <Description>EF Core keyset pagination for OrionPage. ToKeysetPageAsync reads the query's OrderBy/ThenBy chain, builds the tuple-comparison WHERE predicate, and returns a Page&lt;T&gt; with an opaque forward cursor — constant-time deep paging where Skip/Take degrades linearly, with no OFFSET.</Description>
+    <PackageTags>orion;pagination;keyset;cursor;ef-core;entity-framework;dotnet</PackageTags>
+    <RootNamespace>Moongazing.OrionPage.EntityFrameworkCore</RootNamespace>
+    <Product>OrionPage.EntityFrameworkCore</Product>
+    <!--
+      Not marked IsAotCompatible: EF Core is not NativeAOT/trim-clean, and this package compiles key
+      selectors to read cursor values. The framework-free OrionPage core (Page, cursor codec, predicate
+      builder) carries the AOT smoke; this package is trim-annotated best-effort but not AOT-published.
+    -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Moongazing.OrionPage\Moongazing.OrionPage.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Moongazing.OrionPage.EntityFrameworkCore.Tests" />
+  </ItemGroup>
+</Project>

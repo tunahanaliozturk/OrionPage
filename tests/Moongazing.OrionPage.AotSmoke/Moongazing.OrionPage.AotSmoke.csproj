@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!--
+      The NativeAOT publish smoke test for the framework-free core. `dotnet publish` must succeed with
+      zero trim/AOT warnings, exercising the cursor codec, value formatting, the keyset predicate
+      builder (construction only - no Compile), Page, and telemetry, in a rooted, trimmed, native
+      binary that exits 0. The EF Core query extension is excluded (EF Core is not NativeAOT-clean).
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks />
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Moongazing.OrionPage\Moongazing.OrionPage.csproj" />
+  </ItemGroup>
+</Project>
