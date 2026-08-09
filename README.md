@@ -13,8 +13,8 @@ Almost every list endpoint ships `.Skip(page * size).Take(size)`. It works in th
 
 ## Packages
 
-- **`OrionPage`** — the framework-free core: `Page<T>`, the opaque `Cursor` codec, and the `KeysetPredicateBuilder`. Reflection-free and AOT-clean.
-- **`OrionPage.EntityFrameworkCore`** — the `ToKeysetPageAsync` query extension that reads your `OrderBy` chain and executes the keyset query.
+- **`OrionPage`** — the framework-free core: `Page<T>` and the opaque `Cursor` codec. Reflection-free and AOT-clean.
+- **`OrionPage.EntityFrameworkCore`** — the `ToKeysetPageAsync` query extension plus the keyset engine (`KeysetPredicateBuilder`, `KeysetSortKey`): reads your `OrderBy` chain, builds the tuple-comparison predicate, and executes. (Not AOT-published — the predicate builder relies on operator-method reflection that NativeAOT trims, and EF Core is not AOT-clean.)
 
 ## Install
 

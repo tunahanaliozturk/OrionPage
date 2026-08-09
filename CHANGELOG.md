@@ -19,10 +19,8 @@ over EF Core with an opaque cursor.
   - **`Cursor`** — an opaque, URL-safe cursor codec. Hand-written, length-prefixed binary (no JSON,
     no reflection), so it is NativeAOT- and trimming-clean. Malformed or tampered tokens decode to
     false rather than throwing.
-  - **`KeysetPredicateBuilder`** — builds the "strictly after the cursor" lexicographic tuple
-    comparison as a pure `Expression` (no compilation, no reflection emit), so it translates to SQL.
-  - **`KeysetSortKey`**, **`PageOptions`** (`DefaultPageSize`/`MaxPageSize`), **`InvalidCursorException`**,
-    and **`AddOrionPage`** DI wiring (options + telemetry).
+  - **`PageOptions`** (`DefaultPageSize`/`MaxPageSize`), **`InvalidCursorException`**, and
+    **`AddOrionPage`** DI wiring (options + telemetry).
   - **OpenTelemetry by default** — `PageDiagnostics` on the family's `OrionInstrumentation` spine: a
     `Moongazing.OrionPage` activity source emitting an `OrionPage.keyset` span with `orion.page.size`
     and `orion.page.has_more`.
@@ -32,6 +30,10 @@ over EF Core with an opaque cursor.
     operators; the extension takes an `IOrderedQueryable<T>`), appends the keyset `WHERE` on a
     continuation, fetches `pageSize + 1` rows to learn `HasMore` without a second count, and encodes
     the next cursor from the last row. Fails fast on an unordered query with clear guidance.
+  - **`KeysetPredicateBuilder`** / **`KeysetSortKey`** — build the "strictly after the cursor"
+    lexicographic tuple comparison as an `Expression` that translates to SQL. These live here rather
+    than in the core because the builder relies on operator-method reflection (`op_LessThan` on
+    `DateTime`/`decimal`) that NativeAOT trims, so it is not part of the AOT-clean surface.
   - Binds to `Orion.Abstractions` 1.2.0; requires EF Core 8+. Not NativeAOT-published (EF Core is not
     AOT-clean, and cursor extraction compiles key selectors); the framework-free core carries the AOT smoke.
 

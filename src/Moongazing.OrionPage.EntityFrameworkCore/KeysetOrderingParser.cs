@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 
-using Moongazing.OrionPage;
-
 /// <summary>
 /// Reads the trailing <c>OrderBy</c>/<c>OrderByDescending</c>/<c>ThenBy</c>/<c>ThenByDescending</c>
 /// chain off an ordered query's expression tree into the sort keys the cursor and predicate need.

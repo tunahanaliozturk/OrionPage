@@ -1,4 +1,4 @@
-namespace Moongazing.OrionPage;
+namespace Moongazing.OrionPage.EntityFrameworkCore;
 
 using System;
 using System.Collections.Generic;
