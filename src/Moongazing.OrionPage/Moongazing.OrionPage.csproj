@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>OrionPage</PackageId>
-    <Description>Keyset (cursor) pagination for .NET that stays fast on page 10,000, because OFFSET is a table scan. This framework-free core carries Page&lt;T&gt;, the opaque cursor codec, and the keyset predicate builder — all reflection-free and AOT-clean. Add OrionPage.EntityFrameworkCore for the ToKeysetPageAsync query extension.</Description>
+    <Description>Keyset (cursor) pagination for .NET that stays fast on page 10,000, because OFFSET is a table scan. This framework-free core carries Page&lt;T&gt;, the opaque cursor codec, InvalidCursorException, PageOptions and telemetry — all reflection-free and AOT-clean. Add OrionPage.EntityFrameworkCore for the ToKeysetPageAsync query extension.</Description>
     <PackageTags>orion;pagination;keyset;cursor;paging;ef-core;dotnet</PackageTags>
     <RootNamespace>Moongazing.OrionPage</RootNamespace>
+    <PackageReadmeFile>docs/README.md</PackageReadmeFile>
     <Product>OrionPage</Product>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
@@ -16,5 +17,8 @@
     <InternalsVisibleTo Include="Moongazing.OrionPage.Tests" />
     <InternalsVisibleTo Include="Moongazing.OrionPage.EntityFrameworkCore" />
     <InternalsVisibleTo Include="Moongazing.OrionPage.EntityFrameworkCore.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="docs/README.md" Pack="true" PackagePath="docs/" />
   </ItemGroup>
 </Project>

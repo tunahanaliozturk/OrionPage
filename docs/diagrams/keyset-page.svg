@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1340" viewBox="0 0 1200 1340">
+  <!--
+    Orion family diagram template. Copy it, keep <defs> and <style>, replace the body.
+    Classes: .step (our code) .ext (backend / external system) .ok (success end) .fail (failure path)
+             .decision (diamond) .note (side remark) .lane (sequence lifeline)
+    Arrows: class="flow" (main path), "flow alt" (alternate / failure path, dashed), "flow back" (response).
+  -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif; fill: #1e1b4b; }
+    .title { font-size: 24px; font-weight: 700; }
+    .subtitle { font-size: 14px; fill: #475569; }
+    .label { font-size: 15px; font-weight: 600; }
+    .small { font-size: 12.5px; fill: #475569; }
+    .code { font-family: "Cascadia Code", Consolas, "SF Mono", monospace; font-size: 13px; fill: #3730a3; }
+    .edge { font-size: 12.5px; fill: #334155; }
+    .step { fill: #eef2ff; stroke: #4f46e5; stroke-width: 2; }
+    .ext { fill: #f0f9ff; stroke: #0284c7; stroke-width: 2; }
+    .ok { fill: #ecfdf5; stroke: #059669; stroke-width: 2; }
+    .fail { fill: #fef2f2; stroke: #dc2626; stroke-width: 2; }
+    .decision { fill: #fffbeb; stroke: #d97706; stroke-width: 2; }
+    .note { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; stroke-dasharray: 4 3; }
+    .lane { stroke: #cbd5e1; stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .flow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+    .flow.alt { stroke: #dc2626; stroke-dasharray: 6 4; marker-end: url(#arrow-fail); }
+    .flow.back { stroke-dasharray: 6 4; }
+    .badge { fill: #4f46e5; }
+    .badge-text { font-size: 12px; font-weight: 700; fill: #ffffff; }
+  </style>
+
+  <rect width="1200" height="1340" fill="#ffffff"/>
+
+  <text class="title" x="40" y="52">OrionPage - fetch one page with ToKeysetPageAsync</text>
+  <text class="subtitle" x="40" y="78">Argument and ordering checks first; a continuation cursor is decoded into a keyset WHERE; one extra row decides HasMore.</text>
+
+  <text class="code" x="160" y="118">query.ToKeysetPageAsync(cursor, pageSize, ct)</text>
+
+  <!-- A: page size -->
+  <polygon class="decision" points="300,134 440,180 300,226 160,180"/>
+  <text class="code" x="300" y="185" text-anchor="middle">pageSize &gt; 0?</text>
+  <path class="flow alt" d="M440,180 L518,180"/>
+  <text class="edge" x="479" y="172" text-anchor="middle">no</text>
+  <rect class="fail" x="520" y="150" width="340" height="60" rx="14"/>
+  <text class="label" x="690" y="176" text-anchor="middle">ArgumentOutOfRangeException</text>
+  <text class="small" x="690" y="197" text-anchor="middle">pageSize must be positive</text>
+  <path class="flow" d="M300,226 L300,262"/>
+  <text class="edge" x="312" y="250">yes</text>
+
+  <!-- B: ordering -->
+  <rect class="step" x="150" y="264" width="300" height="70" rx="14"/>
+  <text class="label" x="300" y="292" text-anchor="middle">Read the ordering</text>
+  <text class="code" x="300" y="318" text-anchor="middle">KeysetOrderingParser.Parse</text>
+  <path class="flow alt" d="M450,299 L518,299"/>
+  <text class="edge" x="484" y="291" text-anchor="middle">none</text>
+  <rect class="fail" x="520" y="269" width="340" height="60" rx="14"/>
+  <text class="label" x="690" y="294" text-anchor="middle">InvalidOperationException</text>
+  <text class="small" x="690" y="315" text-anchor="middle">no OrderBy/ThenBy as the final operators</text>
+
+  <rect class="note" x="890" y="255" width="280" height="88" rx="10"/>
+  <text class="small" x="906" y="280">Span OrionPage.keyset starts here,</text>
+  <text class="small" x="906" y="302">tagged orion.page.size; the result</text>
+  <text class="small" x="906" y="324">sets orion.page.has_more.</text>
+
+  <path class="flow" d="M300,334 L300,370"/>
+
+  <!-- D: first page or continuation -->
+  <polygon class="decision" points="300,372 440,418 300,464 160,418"/>
+  <text class="code" x="300" y="423" text-anchor="middle">cursor null or empty?</text>
+  <path class="flow" d="M160,418 L70,418 L70,1035 L148,1035"/>
+  <text class="edge" x="115" y="410" text-anchor="middle">yes</text>
+  <text class="edge" x="58" y="726" text-anchor="middle" transform="rotate(-90 58 726)">first page: no WHERE</text>
+
+  <rect class="note" x="520" y="384" width="650" height="68" rx="10"/>
+  <text class="small" x="536" y="410">The cursor is base64url over length-prefixed UTF-8 segments, one per sort key, taken</text>
+  <text class="small" x="536" y="432">from the last row of the previous page. It is opaque but not signed yet.</text>
+
+  <path class="flow" d="M300,464 L300,500"/>
+  <text class="edge" x="312" y="488">no: continuation</text>
+
+  <!-- E: decode -->
+  <polygon class="decision" points="300,502 440,548 300,594 160,548"/>
+  <text class="code" x="300" y="545" text-anchor="middle">Cursor.TryDecode</text>
+  <text class="small" x="300" y="565" text-anchor="middle">well-formed?</text>
+  <path class="flow alt" d="M440,548 L518,548"/>
+  <text class="edge" x="479" y="540" text-anchor="middle">false</text>
+  <rect class="fail" x="520" y="518" width="340" height="60" rx="14"/>
+  <text class="label" x="690" y="543" text-anchor="middle">InvalidCursorException</text>
+  <text class="small" x="690" y="564" text-anchor="middle">malformed or tampered token</text>
+  <path class="flow" d="M300,594 L300,630"/>
+  <text class="edge" x="312" y="618">true</text>
+
+  <!-- F: key count -->
+  <polygon class="decision" points="300,632 440,678 300,724 160,678"/>
+  <text class="code" x="300" y="675" text-anchor="middle">segments.Count</text>
+  <text class="small" x="300" y="695" text-anchor="middle">equals keys.Count?</text>
+  <path class="flow alt" d="M440,678 L518,678"/>
+  <text class="edge" x="479" y="670" text-anchor="middle">no</text>
+  <rect class="fail" x="520" y="648" width="340" height="60" rx="14"/>
+  <text class="label" x="690" y="673" text-anchor="middle">InvalidCursorException</text>
+  <text class="small" x="690" y="694" text-anchor="middle">sort order changed since the cursor was issued</text>
+  <path class="flow" d="M300,724 L300,760"/>
+  <text class="edge" x="312" y="748">yes</text>
+
+  <!-- G: parse values -->
+  <polygon class="decision" points="300,762 440,808 300,854 160,808"/>
+  <text class="code" x="300" y="805" text-anchor="middle">KeysetValue.Parse</text>
+  <text class="small" x="300" y="825" text-anchor="middle">per key type</text>
+  <path class="flow alt" d="M440,808 L518,808"/>
+  <text class="edge" x="479" y="800" text-anchor="middle">fails</text>
+  <rect class="fail" x="520" y="778" width="340" height="60" rx="14"/>
+  <text class="label" x="690" y="803" text-anchor="middle">InvalidCursorException</text>
+  <text class="small" x="690" y="824" text-anchor="middle">a value does not fit its key type</text>
+  <path class="flow alt" d="M370,831 L490,831 L490,927 L518,927"/>
+  <path class="flow" d="M300,854 L300,890"/>
+  <text class="edge" x="312" y="878">ok</text>
+
+  <!-- H: predicate -->
+  <rect class="step" x="150" y="892" width="300" height="70" rx="14"/>
+  <text class="label" x="300" y="920" text-anchor="middle">Append the keyset WHERE</text>
+  <text class="code" x="300" y="946" text-anchor="middle">KeysetPredicateBuilder.BuildAfter</text>
+  <rect class="fail" x="520" y="897" width="340" height="60" rx="14"/>
+  <text class="label" x="690" y="922" text-anchor="middle">NotSupportedException</text>
+  <text class="small" x="690" y="943" text-anchor="middle">key type not supported (e.g. string, Guid)</text>
+
+  <rect class="note" x="890" y="866" width="280" height="132" rx="10"/>
+  <text class="small" x="906" y="890">For sort keys k1..kn the WHERE is</text>
+  <text class="code" x="906" y="914">(k1 &lt; v1)</text>
+  <text class="code" x="906" y="936">OR (k1 = v1 AND k2 &lt; v2)</text>
+  <text class="code" x="906" y="958">OR ...</text>
+  <text class="small" x="906" y="982">&lt; on descending keys, &gt; on ascending</text>
+
+  <path class="flow" d="M300,962 L300,998"/>
+
+  <!-- I: fetch -->
+  <rect class="step" x="150" y="1000" width="300" height="70" rx="14"/>
+  <text class="label" x="300" y="1028" text-anchor="middle">Fetch pageSize + 1 rows</text>
+  <text class="code" x="300" y="1054" text-anchor="middle">Take(pageSize + 1).ToListAsync</text>
+  <path class="flow" d="M300,1070 L300,1106"/>
+
+  <!-- J: has more -->
+  <polygon class="decision" points="300,1108 440,1154 300,1200 160,1154"/>
+  <text class="code" x="300" y="1159" text-anchor="middle">rows.Count &gt; pageSize?</text>
+  <path class="flow" d="M440,1154 L518,1154"/>
+  <text class="edge" x="479" y="1146" text-anchor="middle">yes</text>
+
+  <rect class="step" x="520" y="1119" width="340" height="70" rx="14"/>
+  <text class="label" x="690" y="1147" text-anchor="middle">Drop the extra row</text>
+  <text class="code" x="690" y="1173" text-anchor="middle">Cursor.Encode(last row keys)</text>
+  <path class="flow alt" d="M860,1154 L888,1154"/>
+  <rect class="fail" x="890" y="1114" width="280" height="80" rx="14"/>
+  <text class="label" x="1030" y="1140" text-anchor="middle">InvalidOperationException</text>
+  <text class="small" x="1030" y="1162" text-anchor="middle">a sort-key value is null</text>
+  <text class="small" x="1030" y="1182" text-anchor="middle">unsupported type: NotSupportedException</text>
+
+  <path class="flow" d="M690,1189 L690,1226"/>
+  <rect class="ok" x="520" y="1228" width="340" height="80" rx="14"/>
+  <text class="label" x="690" y="1256" text-anchor="middle">Page&lt;T&gt;</text>
+  <text class="small" x="690" y="1278" text-anchor="middle">HasMore = true, NextCursor set</text>
+  <text class="small" x="690" y="1298" text-anchor="middle">feed NextCursor back in for the next page</text>
+
+  <path class="flow" d="M300,1200 L300,1226"/>
+  <text class="edge" x="312" y="1218">no</text>
+  <rect class="ok" x="150" y="1228" width="300" height="80" rx="14"/>
+  <text class="label" x="300" y="1256" text-anchor="middle">Page&lt;T&gt;</text>
+  <text class="small" x="300" y="1278" text-anchor="middle">HasMore = false, NextCursor = null</text>
+  <text class="small" x="300" y="1298" text-anchor="middle">last page, or an empty one</text>
+</svg>
