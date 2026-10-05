@@ -1,11 +1,16 @@
 <p align="center">
-  <img src="docs/logo.png" alt="OrionPage" width="150" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo.png">
+    <img src="docs/icon.png" alt="OrionPage logo" width="150">
+  </picture>
 </p>
 
 # OrionPage
 
 [![CI/CD](https://github.com/tunahanaliozturk/OrionPage/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/tunahanaliozturk/OrionPage/actions/workflows/ci-cd.yml)
 [![NuGet](https://img.shields.io/nuget/v/OrionPage.svg)](https://www.nuget.org/packages/OrionPage/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0-purple.svg)
 
 **Pagination that stays fast on page 10,000.** Keyset (cursor) paging for EF Core with an opaque cursor and a one-line query extension — because `OFFSET 100000` is a table scan, and every list endpoint eventually pays for it.
 
@@ -13,8 +18,12 @@ Almost every list endpoint ships `.Skip(page * size).Take(size)`. It works in th
 
 ## Packages
 
-- **`OrionPage`** — the framework-free core: `Page<T>` and the opaque `Cursor` codec. Reflection-free and AOT-clean.
-- **`OrionPage.EntityFrameworkCore`** — the `ToKeysetPageAsync` query extension plus the keyset engine (`KeysetPredicateBuilder`, `KeysetSortKey`): reads your `OrderBy` chain, builds the tuple-comparison predicate, and executes. (Not AOT-published — the predicate builder relies on operator-method reflection that NativeAOT trims, and EF Core is not AOT-clean.)
+![OrionPage packages: your endpoint calls ToKeysetPageAsync in OrionPage.EntityFrameworkCore, which queries EF Core with a keyset WHERE and returns the core's Page<T>; the optional AddOrionPage registers PageOptions and PageDiagnostics, and the core emits the OrionPage.keyset span through Orion.Abstractions](docs/diagrams/overview.png)
+
+| Package | What it is |
+|---------|------------|
+| [`OrionPage`](https://www.nuget.org/packages/OrionPage/) | The framework-free core: `Page<T>`, the opaque `Cursor` codec, `InvalidCursorException`, `PageOptions` with `AddOrionPage`, and `PageDiagnostics`. Reflection-free and AOT-clean. |
+| [`OrionPage.EntityFrameworkCore`](https://www.nuget.org/packages/OrionPage.EntityFrameworkCore/) | The `ToKeysetPageAsync` query extension plus the keyset engine (`KeysetPredicateBuilder`, `KeysetSortKey`): reads your `OrderBy` chain, builds the tuple-comparison predicate, and executes. Not AOT-published: the predicate builder relies on operator-method reflection that NativeAOT trims, and EF Core is not AOT-clean. |
 
 ## Install
 
@@ -39,10 +48,27 @@ public Task<Page<Order>> ListAsync(string? cursor, CancellationToken ct) =>
 `Page<T>` carries the rows, an opaque forward `NextCursor`, and `HasMore`:
 
 ```jsonc
-{ "items": [ /* ... */ ], "nextCursor": "eyJjIjoiMjAyNi0wNy0...", "hasMore": true }
+{ "items": [ /* ... */ ], "nextCursor": "AAAAHDIwMjYtMDEtMDFUMDA6MTU6MDAuMDAw...", "hasMore": true, "count": 20 }
 ```
 
 Fetch the next page by feeding `NextCursor` back in. When `HasMore` is false, `NextCursor` is null.
+
+![OrionPage cursor walk: the first request has no cursor and fetches pageSize + 1 rows; the extra row sets HasMore and the last row's keys become NextCursor; the next request turns that cursor into a keyset WHERE; the last page returns HasMore false and a null cursor](docs/diagrams/cursor-walk.png)
+
+### How one page is fetched
+
+![ToKeysetPageAsync flow: pageSize must be positive and the query must end in OrderBy/ThenBy; a null or empty cursor fetches the first page; otherwise the cursor is decoded, checked against the key count and parsed per key type, each failure raising InvalidCursorException, before the keyset WHERE is appended; pageSize + 1 rows are fetched and the extra row decides HasMore and NextCursor](docs/diagrams/keyset-page.png)
+
+| Situation | Result |
+|-----------|--------|
+| `pageSize` is zero or negative | `ArgumentOutOfRangeException` |
+| The query does not end in `OrderBy`/`ThenBy` | `InvalidOperationException` |
+| The cursor is not valid base64url or its length prefixes are corrupt | `InvalidCursorException` |
+| The cursor has a different number of values than the query has sort keys | `InvalidCursorException` |
+| A cursor value does not parse as its sort key's type | `InvalidCursorException` |
+| A sort key has an unsupported type (for example `string` or `Guid`) | `NotSupportedException`, when a cursor has to be read or written |
+| The last row of a page has a null sort-key value | `InvalidOperationException` |
+| Fewer than `pageSize + 1` rows remain (last page, or an empty result) | `HasMore` false, `NextCursor` null |
 
 ### Projecting to a DTO
 
@@ -62,8 +88,24 @@ You can also project **before** ordering when EF can translate the ordering — 
 
 - **Constant-time deep pages.** A continuation is a `WHERE` tuple-comparison seek against your sort index — never `OFFSET`. Page 10,000 costs the same as page 1.
 - **No skipped or duplicated rows** across concurrent writes, provided the ordering is a stable *total* order — which is why the last sort key must be a unique tie-breaker (e.g. `Id`). Ties on earlier keys are handled correctly.
-- **Opaque cursors.** The cursor is a compact, URL-safe, reflection-free binary token; a malformed or tampered cursor is a typed `InvalidCursorException` (mapped to `400` by the Wave 3 web binding), not a 500. HMAC signing lands in a later wave.
+- **Opaque cursors.** The cursor is a compact, URL-safe, reflection-free binary token; a malformed or tampered cursor is a typed `InvalidCursorException` (the planned Wave 3 web binding maps it to `400`), not a 500. HMAC signing lands in a later wave.
 - **No unbounded `COUNT(*)`.** `HasMore` answers "is there a next page?" without the O(n) cost of a total count.
+
+## Configuration
+
+`ToKeysetPageAsync` needs no DI: you pass the page size on each call. `AddOrionPage` registers `PageOptions` and the shared `PageDiagnostics` for the planned Wave 3 web binding, which will enforce the bounds:
+
+```csharp
+using Moongazing.OrionPage.DependencyInjection;
+
+builder.Services.AddOrionPage(o =>
+{
+    o.DefaultPageSize = 20; // default 20, must be positive
+    o.MaxPageSize = 100;    // default 100, must be positive and >= DefaultPageSize
+});
+```
+
+Invalid values throw `ArgumentOutOfRangeException` when the options are first resolved. Until the web binding ships, clamp a client-supplied page size to `MaxPageSize` yourself before calling `ToKeysetPageAsync`.
 
 ## Observability
 
@@ -82,10 +124,11 @@ Follows [Semantic Versioning](https://semver.org/). Multi-targets `net8.0`, `net
 ## Documentation
 
 - [CHANGELOG.md](CHANGELOG.md) — release notes.
+- [SECURITY.md](SECURITY.md) — how to report a vulnerability privately.
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Report a vulnerability privately as described in [SECURITY.md](SECURITY.md).
 
 ## More from the Orion family
 

@@ -4,6 +4,7 @@
     <Description>EF Core keyset pagination for OrionPage. ToKeysetPageAsync reads the query's OrderBy/ThenBy chain, builds the tuple-comparison WHERE predicate, and returns a Page&lt;T&gt; with an opaque forward cursor — constant-time deep paging where Skip/Take degrades linearly, with no OFFSET.</Description>
     <PackageTags>orion;pagination;keyset;cursor;ef-core;entity-framework;dotnet</PackageTags>
     <RootNamespace>Moongazing.OrionPage.EntityFrameworkCore</RootNamespace>
+    <PackageReadmeFile>docs/README.md</PackageReadmeFile>
     <Product>OrionPage.EntityFrameworkCore</Product>
     <!--
       Not marked IsAotCompatible: EF Core is not NativeAOT/trim-clean, and this package compiles key
@@ -18,5 +19,8 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Moongazing.OrionPage.EntityFrameworkCore.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="docs/README.md" Pack="true" PackagePath="docs/" />
   </ItemGroup>
 </Project>
